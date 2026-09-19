@@ -1,0 +1,28 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: homelab-vault-auth
+  namespace: production
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: homelab-app
+    serviceAccount: nginx-app
+    audiences:
+      - vault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: db-credentials
+  namespace: production
+spec:
+  type: kv-v2
+  mount: secret
+  path: homelab/db-credentials
+  destination:
+    name: db-credentials
+    create: true
+  refreshAfter: 30s
+  vaultAuthRef: homelab-vault-auth
