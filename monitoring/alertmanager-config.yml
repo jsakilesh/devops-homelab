@@ -5,29 +5,48 @@ metadata:
   namespace: monitoring
 spec:
   route:
-    groupBy: ["alertname", "namespace"]
+    groupBy: ["alertname", "namespace", "severity"]
     groupWait: 30s
     groupInterval: 5m
-    repeatInterval: 12h
-    receiver: slack-notifications
+    repeatInterval: 4h
+    receiver: slack-warning
     routes:
-      - match:
-          severity: critical
+      - matchers:
+          - name: severity
+            value: critical
         receiver: slack-critical
-      - match:
-          severity: warning
-        receiver: slack-notifications
+        repeatInterval: 1h
+        continue: false
+      - matchers:
+          - name: severity
+            value: warning
+        receiver: slack-warning
+        repeatInterval: 4h
+        continue: false
+      - matchers:
+          - name: alertname
+            value: Watchdog
+        receiver: blackhole
 
   receivers:
-    - name: slack-notifications
+    - name: blackhole
+
+    - name: slack-warning
       slackConfigs:
         - apiURL:
             name: alertmanager-slack-secret
             key: webhook-url
           channel: "#devops-alerts"
           sendResolved: true
-          title: '{{ template "slack.default.title" . }}'
-          text: '{{ template "slack.default.text" . }}'
+          iconEmoji: ":warning:"
+          title: "⚠️ [{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}"
+          text: |
+            {{ range .Alerts }}
+            *Alert:* {{ .Annotations.summary }}
+            *Description:* {{ .Annotations.description }}
+            *Namespace:* {{ .Labels.namespace }}
+            *Severity:* {{ .Labels.severity }}
+            {{ end }}
 
     - name: slack-critical
       slackConfigs:
@@ -36,5 +55,11 @@ spec:
             key: webhook-url
           channel: "#devops-critical"
           sendResolved: true
+          iconEmoji: ":rotating_light:"
           title: "🚨 CRITICAL: {{ .GroupLabels.alertname }}"
-          text: "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
+          text: |
+            {{ range .Alerts }}
+            *Alert:* {{ .Annotations.summary }}
+            *Description:* {{ .Annotations.description }}
+            *Namespace:* {{ .Labels.namespace }}
+            {{ end }}
