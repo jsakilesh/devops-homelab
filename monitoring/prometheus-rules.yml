@@ -1,0 +1,71 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab-alerts
+  namespace: monitoring
+  labels:
+    app: kube-prometheus-stack
+    release: prometheus
+spec:
+  groups:
+    - name: pod.rules
+      rules:
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total[5m]) > 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash looping"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has restarted {{ $value }} times in 5 minutes."
+
+        - alert: PodNotReady
+          expr: kube_pod_status_ready{condition="true"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.pod }} is not ready"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been not ready for more than 5 minutes."
+
+    - name: node.rules
+      rules:
+        - alert: NodeHighCPU
+          expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU on {{ $labels.instance }}"
+            description: "CPU usage is {{ $value }}% on node {{ $labels.instance }}."
+
+        - alert: NodeHighMemory
+          expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory on {{ $labels.instance }}"
+            description: "Memory usage is {{ $value }}% on node {{ $labels.instance }}."
+
+        - alert: NodeDiskSpaceLow
+          expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Low disk space on {{ $labels.instance }}"
+            description: "Disk usage is {{ $value }}% on node {{ $labels.instance }}."
+
+    - name: slo.rules
+      rules:
+        - alert: ErrorBudgetBurnRateHigh
+          expr: |
+            sum(rate(http_requests_total{status=~"5.."}[6h])) /
+            sum(rate(http_requests_total[6h])) > (1 - 0.999) * 2
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Error budget burn rate too high"
+            description: "The error budget is being consumed at 2x the expected rate. SLO at risk."
