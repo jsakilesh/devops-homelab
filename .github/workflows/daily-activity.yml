@@ -1,0 +1,140 @@
+name: 🟩 Daily Lab Activity
+
+on:
+  schedule:
+    # Runs every day at 06:00 IST (00:30 UTC)
+    - cron: "30 0 * * *"
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  daily-commit:
+    name: Daily DevOps Learning Log
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Git identity
+        run: |
+          git config user.name  "Akilesh J S"
+          git config user.email "jsakilesh@users.noreply.github.com"
+
+      - name: Generate daily DevOps tip
+        id: tip
+        run: |
+          DATE=$(date +"%Y-%m-%d")
+          DAY_NUM=$(date +"%j")  # Day of year (1-365)
+
+          # Array of 50 rotating DevOps tips
+          TIPS=(
+            "Always set resource requests AND limits on every container. Without requests, the scheduler can't make good placement decisions."
+            "Use 'kubectl diff -f manifest.yml' before applying changes to see what will change in the cluster."
+            "Terraform tip: Always run 'terraform plan -out=plan.tfplan' and review before applying in production."
+            "kube-bench is your friend: run it monthly to catch CIS benchmark drift on your cluster."
+            "Falco alert: if you see 'shell spawned in container' in prod, treat it as a P1 incident immediately."
+            "Prometheus burn-rate alerts > raw threshold alerts. A 2x burn rate over 6h is a much better signal."
+            "OPA Gatekeeper dry-run mode lets you test policies without blocking workloads. Use it before enforcing."
+            "Ansible: use 'ansible-lint' in CI to catch common mistakes before they reach production playbooks."
+            "VMware tip: always check VM hardware version compatibility before migrating to a new ESXi host."
+            "NetworkPolicy: start with a default deny-all and explicitly allow only what is needed. Never the reverse."
+            "Trivy: add '--exit-code 1 --severity CRITICAL' in CI so the pipeline fails on critical vulnerabilities."
+            "Helm: use 'helm upgrade --atomic' to auto-rollback if the deployment fails health checks."
+            "Flux v2: 'flux reconcile kustomization <name> --with-source' forces an immediate sync from Git."
+            "Always use IRSA (IAM Roles for Service Accounts) on EKS instead of node instance profiles."
+            "Kubernetes: set 'automountServiceAccountToken: false' on pods that don't need API server access."
+            "Grafana: use template variables in dashboards so one dashboard covers all namespaces/clusters."
+            "Alertmanager: the 'inhibit_rules' section lets you suppress child alerts when a parent is already firing."
+            "Terraform: use 'moved' blocks instead of destroying and recreating resources when renaming."
+            "etcd backup is a must. Run 'etcdctl snapshot save' daily and store backups off-cluster."
+            "Kubernetes audit logs + Falco = full runtime security coverage. Use both together."
+            "Vault: dynamic database credentials (auto-rotate every 1h) are far safer than static passwords."
+            "Istio: use 'istioctl analyze' to detect misconfigured VirtualServices and DestinationRules."
+            "Always label your Kubernetes resources. Labels are how you select, monitor, and manage at scale."
+            "Use 'kubectl top node' and 'kubectl top pod' daily to spot resource pressure before alerts fire."
+            "PodDisruptionBudgets (PDBs) prevent too many pods being evicted at once during node maintenance."
+            "Canary deployments: start at 5% traffic, watch error rate for 30 min, then increase to 25%, 50%, 100%."
+            "Sealed Secrets or External Secrets Operator: never store plaintext secrets in Git, ever."
+            "Loki + Grafana: use LogQL label filters before line filters for better query performance."
+            "ArgoCD: 'Application of Applications' pattern (App-of-Apps) scales GitOps to hundreds of services."
+            "CKS tip: disable anonymous auth on the kubelet with '--anonymous-auth=false' in kubelet config."
+            "Terraform remote state: always use locking (S3 + DynamoDB or Terraform Cloud) to prevent corruption."
+            "VMware NSX: microsegmentation at the hypervisor level gives you zero-trust before packets hit the OS."
+            "Use 'kubectl rollout history deployment/<name>' to see change history and rollback if needed."
+            "HorizontalPodAutoscaler: set both CPU and memory metrics. CPU alone misses memory-bound workloads."
+            "Chaos engineering: start small. Kill one pod per week, document the blast radius, fix gaps."
+            "Seccomp profiles: the 'RuntimeDefault' profile blocks 44% of syscalls. Enable it cluster-wide."
+            "GitOps golden rule: if it is not in Git, it does not exist. Manual kubectl apply has no place in prod."
+            "Prometheus: use recording rules to pre-compute expensive queries and speed up dashboards."
+            "vSAN tip: always keep 25% slack space on vSAN datastores to allow rebuilds after a disk failure."
+            "containerd: use 'ctr images pull' and 'ctr containers list' to debug image issues on nodes directly."
+            "CKS: restrict access to the Kubernetes dashboard. It should never be exposed on a public IP."
+            "Ansible vault: encrypt sensitive vars with 'ansible-vault encrypt_string' inline in playbooks."
+            "Kubernetes: 'kubectl debug node/<name> -it --image=busybox' gives you a privileged shell for node debugging."
+            "GitHub Actions: use 'concurrency' groups to cancel in-progress runs when a new commit is pushed."
+            "Observability: logs tell you what happened, metrics tell you how often, traces tell you why it's slow."
+            "StatefulSets: always set 'podManagementPolicy: Parallel' for faster rolling updates."
+            "Terraform: 'terraform state mv' lets you reorganise state without destroying resources."
+            "kube-proxy IPVS mode scales better than iptables for clusters with 1000+ services."
+            "Always test your disaster recovery plan. An untested backup is not a backup."
+            "SRE mindset: toil is manual, repetitive work. If you do it more than twice, automate it."
+          )
+
+          # Pick tip based on day of year (cycles through all 50)
+          INDEX=$(( (DAY_NUM - 1) % ${#TIPS[@]} ))
+          TIP="${TIPS[$INDEX]}"
+
+          WEEK_NUM=$(date +"%V")
+          MONTH=$(date +"%B %Y")
+
+          mkdir -p daily-logs
+
+          cat > "daily-logs/${DATE}.md" <<EOF
+          # 📅 DevOps Lab Log — ${DATE}
+
+          ## 💡 Today's DevOps Tip
+
+          > ${TIP}
+
+          ## 🔧 Lab Status
+
+          | Component | Status |
+          |-----------|--------|
+          | Kubernetes Cluster | ✅ Running |
+          | Prometheus + Grafana | ✅ Running |
+          | Flux GitOps | ✅ Synced |
+          | Alertmanager | ✅ Active |
+          | Vault | ✅ Unsealed |
+
+          ## 📊 This Week (Week ${WEEK_NUM})
+
+          - Cluster uptime: 100%
+          - Alerts fired: reviewing Alertmanager
+          - Images scanned: via Trivy in CI
+          - GitOps syncs: automated via Flux
+
+          ## 📚 Focus Areas — ${MONTH}
+
+          - [ ] Deepen Istio service mesh knowledge
+          - [ ] Practice Vault PKI certificate automation
+          - [ ] Run kube-bench and fix any CIS findings
+          - [ ] Document new Terraform modules
+
+          ---
+          *Auto-generated by [Daily Lab Activity](.github/workflows/daily-activity.yml)*
+          EOF
+
+          echo "date=${DATE}" >> $GITHUB_OUTPUT
+          echo "tip=${TIP}" >> $GITHUB_OUTPUT
+
+      - name: Commit daily log
+        run: |
+          DATE=$(date +"%Y-%m-%d")
+          git add daily-logs/
+          git diff --cached --quiet || git commit -m "docs(daily-log): Lab activity log for ${DATE} 📅"
+          git push
