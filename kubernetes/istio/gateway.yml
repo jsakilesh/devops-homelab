@@ -1,0 +1,56 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: homelab-gateway
+  namespace: production
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.homelab.local"
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: homelab-tls
+      hosts:
+        - "*.homelab.local"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: nginx-app
+  namespace: production
+spec:
+  hosts:
+    - myapp.homelab.local
+  gateways:
+    - homelab-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: nginx-app
+            port:
+              number: 80
+          weight: 90
+        - destination:
+            host: nginx-app-canary
+            port:
+              number: 80
+          weight: 10
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+      timeout: 10s
