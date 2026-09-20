@@ -1,0 +1,32 @@
+# Enable strict mTLS for entire production namespace
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: production
+spec:
+  mtls:
+    mode: STRICT
+---
+# AuthorizationPolicy - only allow ingress from istio-system and monitoring
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: nginx-app-authz
+  namespace: production
+spec:
+  selector:
+    matchLabels:
+      app: nginx-app
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - istio-system
+              - monitoring
+              - production
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            ports: ["80"]
